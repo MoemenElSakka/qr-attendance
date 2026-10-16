@@ -15,8 +15,16 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
 // ========== إعداد قاعدة البيانات ==========
-const db = new Database('attendance.db');
+const path = require('path');
+const fs = require('fs');
 
+// إنشاء مجلد data إذا لم يكن موجوداً
+if (!fs.existsSync('/data')) {
+    try { fs.mkdirSync('/data'); } catch(e) {}
+}
+
+const dbPath = process.env.RENDER ? '/data/attendance.db' : 'attendance.db';
+const db = new Database(dbPath);
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
