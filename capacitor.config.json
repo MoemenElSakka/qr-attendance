@@ -1,0 +1,6 @@
+{
+  "appId": "com.yourname.attendance",
+  "appName": "نظام الحضور",
+  "webDir": "public",
+  "bundledWebRuntime": false
+}

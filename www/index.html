@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تسجيل الحضور بـ QR</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+	<link rel="manifest" href="/manifest.json">
+	<button id="installBtn" style="display: none;" class="btn-success" onclick="installApp()">📱 تثبيت التطبيق</button>
+<meta name="theme-color" content="#1e3c72">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الحضور">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* صفحة تسجيل الدخول */
+        .login-container {
+            max-width: 450px;
+            margin: 80px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .login-container h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 30px;
+        }
+        
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .login-container input:focus {
+            outline: none;
+            border-color: #0061ff;
+        }
+        
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+        }
+        
+        /* الهيدر */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-logo img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+        }
+        
+        .header-info {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .header-info h1 {
+            color: #1e3c72;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header-info h2 {
+            color: #2a5298;
+            font-size: 18px;
+            font-weight: normal;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .user-info span {
+            color: #1e3c72;
+            font-weight: bold;
+        }
+        
+        /* الحاوية الرئيسية */
+        .container { 
+            max-width: 1200px; 
+            margin: auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        /* التبويبات */
+        /* التبويبات */
+.tabs { 
+    display: flex; 
+    border-bottom: 3px solid #e0e0e0; 
+    margin-bottom: 30px;
+    gap: 5px;
+    flex-wrap: wrap;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    padding: 5px;
+    border-radius: 15px 15px 0 0;
+}
+
+.tab { 
+    flex: 1; 
+    padding: 15px; 
+    text-align: center; 
+    cursor: pointer; 
+    background: transparent;
+    color: white;
+    border: none; 
+    font-size: 16px; 
+    transition: all 0.3s;
+    border-radius: 10px;
+    font-weight: 500;
+    min-width: 120px;
+}
+
+.tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tab.active { 
+    background: white;
+    color: #1e3c72; 
+    font-weight: bold;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+        
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* الماسح */
+        #reader { width: 100%; max-width: 400px; margin: 20px auto; }
+        #result { 
+            margin-top: 20px; 
+            font-size: 1.3em; 
+            color: #28a745; 
+            font-weight: bold; 
+            min-height: 30px; 
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        /* الأزرار */
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            background: linear-gradient(135deg, #0061ff 0%, #00b4db 100%);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            margin: 5px; 
+            transition: all 0.3s;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0, 97, 255, 0.4);
+        }
+        
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 97, 255, 0.6);
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+        }
+        
+        .btn-warning { 
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333;
+            box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-password {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* النماذج */
+        input, select { 
+            padding: 12px; 
+            font-size: 16px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 8px; 
+            margin: 5px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #0061ff;
+        }
+        
+        .form-group { 
+            margin: 20px 0; 
+            display: flex; 
+            flex-wrap: wrap; 
+            align-items: center; 
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .search-box { width: 100%; max-width: 500px; margin: 20px auto; }
+        
+        /* الإحصائيات */
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 20px; 
+            margin: 30px 0;
+        }
+        
+        .stat-card { 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(30, 60, 114, 0.3);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card h3 { 
+            margin: 0; 
+            font-size: 16px; 
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .number { 
+            font-size: 48px; 
+            font-weight: bold; 
+            margin: 10px 0;
+        }
+        
+        /* بطاقة التاريخ */
+        .date-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s;
+        }
+
+        .date-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .date-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .date-icon {
+            font-size: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .date-text h3 {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .date-full {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .date-time {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        /* الجداول */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        th, td { 
+            padding: 15px; 
+            text-align: right; 
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th { 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover { 
+            background: #f8f9fa;
+        }
+        
+        /* عرض QR */
+        .qr-display { 
+            text-align: center; 
+            margin: 20px 0; 
+            padding: 30px; 
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 15px;
+        }
+        
+        .qr-display img { 
+            max-width: 250px; 
+            border: 3px solid white;
+            padding: 15px; 
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .empty { 
+            text-align: center; 
+            color: #999; 
+            padding: 40px;
+            font-size: 18px;
+        }
+        
+        /* Modal */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.7);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content { 
+            background: white; 
+            margin: 5% auto; 
+            padding: 40px; 
+            border-radius: 15px; 
+            width: 90%; 
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-content h2 { 
+            margin-top: 0;
+            color: #1e3c72;
+            margin-bottom: 20px;
+        }
+        
+        .close { 
+            float: left; 
+            font-size: 32px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            color: #aaa;
+            transition: color 0.3s;
+        }
+        
+        .close:hover { 
+            color: #000;
+        }
+        
+        .export-buttons { 
+            display: flex; 
+            gap: 15px; 
+            justify-content: center; 
+            margin: 30px 0; 
+            flex-wrap: wrap;
+        }
+        
+        /* إعدادات الكلية */
+        .settings-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 1px solid #e3f2fd;
+        }
+        
+        .settings-section h3 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        .logo-preview {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+        
+        .logo-preview img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        
+        .logo-preview .placeholder {
+            width: 100px;
+            height: 100px;
+            background: #e3f2fd;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e3c72;
+            font-size: 14px;
+        }
+        
+        h2 {
+            color: #1e3c72;
+            margin: 25px 0 15px 0;
+            font-size: 22px;
+        }
+        
+        hr {
+            border: none;
+            height: 2px;
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            margin: 30px 0;
+            border-radius: 2px;
+        }
+        
+        /* Badge للحالة */
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-admin {
+            background: #1e3c72;
+            color: white;
+        }
+        
+        .badge-teacher {
+            background: #0061ff;
+            color: white;
+        }
+        
+        /* طلبات معلقة */
+        .request-card {
+            background: white;
+            border: 2px solid #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .request-info {
+            flex: 1;
+        }
+        
+        .request-info h4 {
+            color: #1e3c72;
+            margin-bottom: 5px;
+        }
+        
+        .request-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 3px 0;
+        }
+        
+        .request-actions {
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- صفحة تسجيل الدخول -->
+    <div id="loginPage" class="login-container">
+        <h1 id="authTitle">🔐 تسجيل الدخول</h1>
+        
+        <!-- نموذج تسجيل الدخول -->
+        <div id="loginForm">
+            <input type="text" id="loginUsername" placeholder="اسم المستخدم">
+            <input type="password" id="loginPassword" placeholder="كلمة المرور">
+            <button onclick="login()">تسجيل الدخول</button>
+            <p style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">
+                ليس لديك حساب؟ 
+                <a href="#" onclick="showRegisterForm()" style="color: #0061ff; text-decoration: none; font-weight: bold;">تسجيل كمعلم</a>
+            </p>
+          
+        </div>
+
+        <!-- نموذج التسجيل -->
+        <div id="registerForm" style="display: none;">
+            <input type="text" id="registerName" placeholder="الاسم الكامل" required>
+            <input type="email" id="registerEmail" placeholder="البريد الإلكتروني (اختياري)">
+            <input type="text" id="registerUsername" placeholder="اسم المستخدم" required>
+            <input type="password" id="registerPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" required>
+            <input type="password" id="registerConfirmPassword" placeholder="تأكيد كلمة المرور" required>
+            <button onclick="register()">إرسال الطلب</button>
+            <p style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">
+                لديك حساب بالفعل؟ 
+                <a href="#" onclick="showLoginForm()" style="color: #0061ff; text-decoration: none; font-weight: bold;">تسجيل الدخول</a>
+            </p>
+        </div>
+
+        <!-- صفحة انتظار الموافقة -->
+        <div id="pendingPage" style="display: none; text-align: center;">
+            <div style="font-size: 64px; margin: 20px 0;">⏳</div>
+            <h2 style="color: #1e3c72; margin-bottom: 20px;">حسابك قيد المراجعة</h2>
+            <p style="color: #666; margin-bottom: 30px;">
+                تم إرسال طلبك بنجاح. سيتم مراجعته من قبل المدير.<br>
+                يمكنك التحقق من حالة حسابك أدناه.
+            </p>
+            <input type="text" id="checkStatusUsername" placeholder="اسم المستخدم" style="width: 100%; margin-bottom: 10px;">
+            <button onclick="checkAccountStatus()">تحقق من الحالة</button>
+            <div id="statusResult" style="margin-top: 20px; font-weight: bold;"></div>
+            <button onclick="showLoginForm()" style="margin-top: 20px;" class="btn-secondary">العودة لتسجيل الدخول</button>
+        </div>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div id="mainApp" style="display: none;">
+        <!-- الهيدر -->
+        <div class="header">
+            <div class="header-logo">
+                <img id="universityLogo" src="" alt="شعار الجامعة" style="display: none;">
+                <div id="universityLogoPlaceholder" style="width: 80px; height: 80px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; text-align: center; padding: 5px;">
+                    شعار الجامعة
+                </div>
+            </div>
+            
+            <div class="header-info">
+                <h1 id="universityName">اسم الجامعة</h1>
+                <h2 id="collegeName">اسم الكلية</h2>
+            </div>
+            
+            <div class="user-info">
+                <span id="userName">المستخدم</span>
+                <button onclick="openChangePasswordModal()" class="btn-password" style="padding: 8px 16px; font-size: 14px;">🔑 تغيير كلمة المرور</button>
+                <button onclick="logout()" class="btn-danger" style="padding: 8px 16px; font-size: 14px;">🚪 خروج</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('scanner', this)">📷 المسح</button>
+                <button class="tab" onclick="showTab('students', this)">👥 الطلاب</button>
+                <button class="tab" onclick="showTab('stats', this)">📊 الإحصائيات</button>
+                <button class="tab" onclick="showTab('pendingRequests', this)" id="pendingRequestsTab" style="display: none;">📋 الطلبات</button>
+                <button class="tab" onclick="showTab('settings', this)" id="settingsTab" style="display: none;">⚙️ الإعدادات</button>
+                <button class="tab" onclick="showTab('users', this)" id="usersTab" style="display: none;">👤 المستخدمون</button>
+            </div>
+
+            <!-- تبويب المسح -->
+            <div id="scanner" class="tab-content active">
+                <h2>📷 مسح كود الحضور</h2>
+                <div id="reader"></div>
+                <div style="text-align: center;">
+                    <button onclick="startScanner()">تشغيل الكاميرا</button>
+                    <button onclick="stopScanner()" class="btn-danger">إيقاف الكاميرا</button>
+                </div>
+                <div id="result">في انتظار المسح...</div>
+            </div>
+
+            <!-- تبويب الطلاب -->
+            <div id="students" class="tab-content">
+                <h2>➕ إضافة طالب جديد</h2>
+                <div class="form-group">
+                    <input type="text" id="newStudentId" placeholder="رقم الطالب (مثل STU001)">
+                    <input type="text" id="newStudentName" placeholder="اسم الطالب">
+                    <input type="text" id="newStudentGrade" placeholder="الصف (اختياري)">
+                    <button onclick="addStudent()" class="btn-success">إضافة الطالب</button>
+                </div>
+                <div id="newStudentQR"></div>
+
+                <h2>📋 قائمة الطلاب</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 ابحث بالرقم أو الاسم أو الصف..." style="width: 100%;" oninput="searchStudents()">
+                </div>
+                <div id="studentsList"></div>
+            </div>
+
+            <!-- تبويب الإحصائيات -->
+            <div id="stats" class="tab-content">
+                <h2>📊 الإحصائيات</h2>
+                
+                <!-- بطاقة تاريخ اليوم -->
+                <div class="date-card">
+                    <div class="date-header">
+                        <div class="date-icon">📅</div>
+                        <div class="date-text">
+                            <h3>تاريخ اليوم</h3>
+                            <div class="date-full" id="todayDate">جاري التحميل...</div>
+                            <div class="date-time" id="todayTime"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- بطاقات الإحصائيات -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>إجمالي الطلاب</h3>
+                        <div class="number" id="totalStudents">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>حضور اليوم</h3>
+                        <div class="number" id="todayAttendance">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>إجمالي السجلات</h3>
+                        <div class="number" id="totalRecords">0</div>
+                    </div>
+                </div>
+
+                <h2>📝 سجل الحضور</h2>
+                <div class="form-group">
+                    <input type="date" id="dateFilter" onchange="loadAttendanceByDate()">
+                    <button onclick="document.getElementById('dateFilter').value=''; loadAttendanceByDate();" class="btn-warning">عرض اليوم</button>
+                </div>
+                
+                <div class="export-buttons">
+                    <button onclick="exportToExcel()" class="btn-success">📊 تصدير إلى Excel</button>
+                    <button onclick="exportToPDF()" class="btn-danger">📄 تصدير إلى PDF</button>
+                </div>
+                
+                <div id="todayRecords"></div>
+
+                <hr>
+                
+                <h2>💾 النسخ الاحتياطي</h2>
+                <div class="export-buttons">
+                    <button onclick="exportBackup()" class="btn-success">⬇️ تصدير نسخة احتياطية</button>
+                    <button onclick="document.getElementById('importFile').click()" class="btn-warning">⬆️ استيراد نسخة احتياطية</button>
+                    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importBackup(event)">
+                </div>
+            </div>
+
+            <!-- تبويب الطلبات المعلقة -->
+            <div id="pendingRequests" class="tab-content">
+                <h2>📋 طلبات التسجيل المعلقة</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    هذه قائمة بالمعلمين الذين طلبوا إنشاء حساب. يمكنك الموافقة على طلباتهم أو رفضها.
+                </p>
+                <div id="pendingRequestsList"></div>
+            </div>
+
+            <!-- تبويب الإعدادات -->
+            <div id="settings" class="tab-content">
+                <h2>⚙️ إعدادات الكلية والجامعة</h2>
+                
+                <div class="settings-section">
+                    <h3>🏛️ بيانات الجامعة</h3>
+                    <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                        <label style="margin-bottom: 5px; font-weight: bold;">اسم الجامعة:</label>
+                        <input type="text" id="settingsUniversityName" placeholder="أدخل اسم الجامعة" style="width: 100%;">
+                    </div>
+                    
+                    <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                        <label style="margin-bottom: 5px; font-weight: bold;">شعار الجامعة:</label>
+                        <div class="logo-preview">
+                            <img id="previewUniversityLogo" src="" style="display: none;">
+                            <div id="placeholderUniversityLogo" class="placeholder">لا يوجد شعار</div>
+                            <div style="flex: 1;">
+                                <input type="file" id="universityLogoInput" accept="image/*" onchange="previewLogo(event, 'university')" style="width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🎓 بيانات الكلية</h3>
+                    <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                        <label style="margin-bottom: 5px; font-weight: bold;">اسم الكلية:</label>
+                        <input type="text" id="settingsCollegeName" placeholder="أدخل اسم الكلية" style="width: 100%;">
+                    </div>
+                    
+                    <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                        <label style="margin-bottom: 5px; font-weight: bold;">شعار الكلية:</label>
+                        <div class="logo-preview">
+                            <img id="previewCollegeLogo" src="" style="display: none;">
+                            <div id="placeholderCollegeLogo" class="placeholder">لا يوجد شعار</div>
+                            <div style="flex: 1;">
+                                <input type="file" id="collegeLogoInput" accept="image/*" onchange="previewLogo(event, 'college')" style="width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button onclick="saveSettings()" class="btn-success" style="padding: 15px 40px; font-size: 18px;">💾 حفظ الإعدادات</button>
+                </div>
+            </div>
+
+            <!-- تبويب المستخدمين -->
+            <div id="users" class="tab-content">
+                <h2>➕ إضافة مستخدم جديد</h2>
+                <div class="form-group">
+                    <input type="text" id="newUserUsername" placeholder="اسم المستخدم">
+                    <input type="password" id="newUserPassword" placeholder="كلمة المرور">
+                    <input type="text" id="newUserName" placeholder="الاسم الكامل">
+                    <select id="newUserRole">
+                        <option value="teacher">معلم</option>
+                        <option value="admin">مدير</option>
+                    </select>
+                    <button onclick="addUser()" class="btn-success">إضافة المستخدم</button>
+                </div>
+
+                <h2>📋 قائمة المستخدمين</h2>
+                <div id="usersList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal للتعديل -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>✏️ تعديل بيانات الطالب</h2>
+            <input type="hidden" id="editStudentId">
+            <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                <label style="margin-bottom: 5px; font-weight: bold;">الاسم:</label>
+                <input type="text" id="editStudentName" style="width: 100%;">
+                <label style="margin-bottom: 5px; font-weight: bold; margin-top: 15px;">الصف:</label>
+                <input type="text" id="editStudentGrade" style="width: 100%;">
+                <button onclick="saveEdit()" class="btn-success" style="margin-top: 20px;">💾 حفظ التعديلات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal تغيير كلمة المرور -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeChangePasswordModal()">&times;</span>
+            <h2>🔑 تغيير كلمة المرور</h2>
+            
+            <!-- للمستخدم العادي -->
+            <div id="userPasswordForm">
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label style="margin-bottom: 5px; font-weight: bold;">كلمة المرور الحالية:</label>
+                    <input type="password" id="currentPassword" style="width: 100%;">
+                    
+                    <label style="margin-bottom: 5px; font-weight: bold; margin-top: 15px;">كلمة المرور الجديدة:</label>
+                    <input type="password" id="newPassword" style="width: 100%;">
+                    
+                    <label style="margin-bottom: 5px; font-weight: bold; margin-top: 15px;">تأكيد كلمة المرور الجديدة:</label>
+                    <input type="password" id="confirmNewPassword" style="width: 100%;">
+                    
+                    <button onclick="changePassword()" class="btn-success" style="margin-top: 20px;">💾 تغيير كلمة المرور</button>
+                </div>
+            </div>
+
+            <!-- للأدمن فقط -->
+            <div id="adminPasswordForm" style="display: none;">
+                <hr style="margin: 30px 0;">
+                <h3 style="color: #1e3c72; margin-bottom: 20px;">🔐 إعادة تعيين كلمة المرور (للأدمن)</h3>
+                <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                    <label style="margin-bottom: 5px; font-weight: bold;">اختر المستخدم:</label>
+                    <select id="resetPasswordUser" style="width: 100%;"></select>
+                    
+                    <label style="margin-bottom: 5px; font-weight: bold; margin-top: 15px;">كلمة المرور الجديدة:</label>
+                    <input type="password" id="adminNewPassword" style="width: 100%;">
+                    
+                    <label style="margin-bottom: 5px; font-weight: bold; margin-top: 15px;">تأكيد كلمة المرور:</label>
+                    <input type="password" id="adminConfirmPassword" style="width: 100%;">
+                    
+                    <button onclick="adminResetPassword()" class="btn-success" style="margin-top: 20px;">💾 إعادة تعيين كلمة المرور</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('✅ Service Worker مسجل');
+        });
+    }
+</script>
+    <script>
+        let html5QrcodeScanner;
+        let currentAttendanceData = [];
+        let universityLogoData = null;
+        let collegeLogoData = null;
+        let currentUser = null;
+
+        // ========== التحقق من التوكن عند بدء التشغيل ==========
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user'));
+            
+            if (token && user) {
+                fetch('/api/verify', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.user) {
+                        showMainApp(data.user);
+                    } else {
+                        localStorage.clear();
+                        showLoginPage();
+                    }
+                })
+                .catch(() => {
+                    localStorage.clear();
+                    showLoginPage();
+                });
+            } else {
+                showLoginPage();
+            }
+        };
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBtn').style.display = 'block';
+});
+
+function installApp() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(choice => {
+            if (choice.outcome === 'accepted') {
+                document.getElementById('installBtn').style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+    }
+}
+        function showLoginPage() {
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        function showMainApp(user) {
+            currentUser = user;
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('userName').innerText = `👤 ${user.name} (${user.role === 'admin' ? 'مدير' : 'معلم'})`;
+            
+            // إظهار التبويبات حسب الصلاحيات
+            if (user.role === 'admin') {
+                document.getElementById('pendingRequestsTab').style.display = 'block';
+                document.getElementById('settingsTab').style.display = 'block';
+                document.getElementById('usersTab').style.display = 'block';
+            } else {
+                document.getElementById('pendingRequestsTab').style.display = 'none';
+                document.getElementById('settingsTab').style.display = 'none';
+                document.getElementById('usersTab').style.display = 'none';
+            }
+            
+            loadSettings();
+        }
+
+        // ========== المصادقة ==========
+
+        function showLoginForm() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('pendingPage').style.display = 'none';
+            document.getElementById('authTitle').innerText = '🔐 تسجيل الدخول';
+        }
+
+        function showRegisterForm() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('pendingPage').style.display = 'none';
+            document.getElementById('authTitle').innerText = '📝 تسجيل كمعلم';
+        }
+
+        function showPendingPage() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('pendingPage').style.display = 'block';
+            document.getElementById('authTitle').innerText = '⏳ انتظار الموافقة';
+        }
+
+        function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                return alert('الرجاء إدخال اسم المستخدم وكلمة المرور');
+            }
+
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                    if (data.status === 'pending') {
+                        showPendingPage();
+                        document.getElementById('checkStatusUsername').value = username;
+                    }
+                } else {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMainApp(data.user);
+                }
+            })
+            .catch(() => {
+                alert('❌ خطأ في الاتصال');
+            });
+        }
+
+        function register() {
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+            if (!name || !username || !password) {
+                return alert('الرجاء ملء جميع الحقول المطلوبة');
+            }
+
+            if (username.length < 3) {
+                return alert('اسم المستخدم يجب أن يكون 3 أحرف على الأقل');
+            }
+
+            if (password.length < 6) {
+                return alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+            }
+
+            if (password !== confirmPassword) {
+                return alert('كلمتا المرور غير متطابقتين');
+            }
+
+            fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, username, password })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    showPendingPage();
+                    document.getElementById('checkStatusUsername').value = username;
+                    document.getElementById('registerName').value = '';
+                    document.getElementById('registerEmail').value = '';
+                    document.getElementById('registerUsername').value = '';
+                    document.getElementById('registerPassword').value = '';
+                    document.getElementById('registerConfirmPassword').value = '';
+                }
+            })
+            .catch(() => {
+                alert('❌ خطأ في الاتصال');
+            });
+        }
+
+        function checkAccountStatus() {
+            const username = document.getElementById('checkStatusUsername').value.trim();
+            if (!username) return alert('الرجاء إدخال اسم المستخدم');
+
+            fetch(`/api/account-status/${username}`)
+                .then(r => r.json())
+                .then(data => {
+                    const result = document.getElementById('statusResult');
+                    if (data.error) {
+                        result.innerText = '❌ ' + data.error;
+                        result.style.color = 'red';
+                    } else {
+                        if (data.status === 'approved') {
+                            result.innerText = '✅ تم الموافقة على حسابك! يمكنك تسجيل الدخول الآن.';
+                            result.style.color = '#28a745';
+                        } else if (data.status === 'pending') {
+                            result.innerText = '⏳ حسابك لا يزال قيد المراجعة.';
+                            result.style.color = '#ffc107';
+                        } else if (data.status === 'rejected') {
+                            result.innerText = '❌ تم رفض طلبك. يرجى التواصل مع المدير.';
+                            result.style.color = 'red';
+                        }
+                    }
+                })
+                .catch(() => {
+                    alert('❌ خطأ في الاتصال');
+                });
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // ========== التنقل بين التبويبات ==========
+        function showTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+
+            if (tabId === 'students') loadStudents();
+            if (tabId === 'stats') loadStats();
+            if (tabId === 'settings') loadSettingsForm();
+            if (tabId === 'users') loadUsers();
+            if (tabId === 'pendingRequests') loadPendingRequests();
+        }
+
+        // ========== ماسح QR ==========
+        function onScanSuccess(decodedText) {
+            document.getElementById('result').innerText = `جاري تسجيل: ${decodedText}...`;
+            sendAttendance(decodedText);
+            html5QrcodeScanner.pause(true);
+            setTimeout(() => {
+                html5QrcodeScanner.resume();
+                document.getElementById('result').innerText = 'في انتظار المسح...';
+            }, 4000);
+        }
+
+        function startScanner() {
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+                document.getElementById('result').innerText = 'تم إيقاف الكاميرا.';
+            }
+        }
+
+        function sendAttendance(qrData) {
+            const token = localStorage.getItem('token');
+            fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ studentId: qrData })
+            })
+            .then(r => r.json())
+            .then(data => {
+                const result = document.getElementById('result');
+                if (data.error) {
+                    result.innerText = `❌ ${data.error}`;
+                    result.style.color = 'red';
+                } else {
+                    result.innerText = `✅ تم تسجيل حضور: ${data.name} | ${data.time}`;
+                    result.style.color = '#28a745';
+                }
+            })
+            .catch(() => {
+                document.getElementById('result').innerText = '❌ خطأ في الاتصال';
+                document.getElementById('result').style.color = 'red';
+            });
+        }
+
+        // ========== إدارة الطلاب ==========
+        function addStudent() {
+            const id = document.getElementById('newStudentId').value.trim();
+            const name = document.getElementById('newStudentName').value.trim();
+            const grade = document.getElementById('newStudentGrade').value.trim();
+
+            if (!id || !name) return alert('رقم الطالب والاسم مطلوبان');
+
+            const token = localStorage.getItem('token');
+            fetch('/api/students', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ id, name, grade })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    document.getElementById('newStudentId').value = '';
+                    document.getElementById('newStudentName').value = '';
+                    document.getElementById('newStudentGrade').value = '';
+                    document.getElementById('newStudentQR').innerHTML = `
+                        <div class="qr-display">
+                            <p>كود الطالب: <strong>${data.student.id}</strong></p>
+                            <img src="${data.qrImage}" alt="QR Code">
+                            <p><a href="${data.qrImage}" download="${data.student.id}.png" class="btn-success" style="display:inline-block; text-decoration:none; padding:8px 15px; margin-top:10px;">⬇️ تحميل الكود</a></p>
+                        </div>
+                    `;
+                    loadStudents();
+                }
+            });
+        }
+
+        function loadStudents(searchTerm = '') {
+            const token = localStorage.getItem('token');
+            const url = searchTerm ? `/api/students?search=${encodeURIComponent(searchTerm)}` : '/api/students';
+            
+            fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(students => {
+                    const list = document.getElementById('studentsList');
+                    if (students.length === 0) {
+                        list.innerHTML = '<div class="empty">لا يوجد طلاب مسجلين</div>';
+                        return;
+                    }
+                    let html = `<table>
+                        <thead><tr><th>الرقم</th><th>الاسم</th><th>الصف</th><th>كود QR</th><th>تعديل</th><th>حذف</th></tr></thead>
+                        <tbody>`;
+                    students.forEach(s => {
+                        html += `<tr>
+                            <td>${s.id}</td>
+                            <td>${s.name}</td>
+                            <td>${s.grade || '-'}</td>
+                            <td><button onclick="showQR('${s.id}')">عرض</button></td>
+                            <td><button onclick="openEditModal('${s.id}', '${s.name}', '${s.grade || ''}')" class="btn-warning">تعديل</button></td>
+                            <td><button onclick="deleteStudent('${s.id}')" class="btn-danger">حذف</button></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    list.innerHTML = html;
+                });
+        }
+
+        function searchStudents() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            loadStudents(searchTerm);
+        }
+
+        function showQR(id) {
+            const token = localStorage.getItem('token');
+            fetch(`/api/students/${id}/qr`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) return alert(data.error);
+                    const win = window.open('', '_blank');
+                    win.document.write(`
+                        <html dir="rtl"><head><title>كود ${data.student.name}</title></head>
+                        <body style="text-align:center; font-family:Arial; padding:20px;">
+                            <h2>${data.student.name}</h2>
+                            <p>الرقم: ${data.student.id}</p>
+                            <img src="${data.qrImage}" style="max-width:300px;">
+                            <p><a href="${data.qrImage}" download="${data.student.id}.png">⬇️ تحميل</a></p>
+                        </body></html>
+                    `);
+                });
+        }
+
+        function openEditModal(id, name, grade) {
+            document.getElementById('editStudentId').value = id;
+            document.getElementById('editStudentName').value = name;
+            document.getElementById('editStudentGrade').value = grade;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function saveEdit() {
+            const id = document.getElementById('editStudentId').value;
+            const name = document.getElementById('editStudentName').value.trim();
+            const grade = document.getElementById('editStudentGrade').value.trim();
+
+            if (!name) return alert('الاسم مطلوب');
+
+            const token = localStorage.getItem('token');
+            fetch(`/api/students/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name, grade })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    closeEditModal();
+                    loadStudents();
+                }
+            });
+        }
+
+        function deleteStudent(id) {
+            if (!confirm(`هل أنت متأكد من حذف الطالب ${id}؟`)) return;
+            const token = localStorage.getItem('token');
+            fetch(`/api/students/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || data.error);
+                    loadStudents();
+                });
+        }
+
+        // ========== الإحصائيات ==========
+        function loadStats() {
+            const token = localStorage.getItem('token');
+            
+            // تحميل معلومات التاريخ
+            loadTodayInfo();
+            
+            fetch('/api/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('totalStudents').innerText = data.totalStudents;
+                document.getElementById('todayAttendance').innerText = data.todayAttendance;
+                document.getElementById('totalRecords').innerText = data.totalRecords;
+            });
+
+            loadAttendanceByDate();
+        }
+
+        function loadAttendanceByDate() {
+            const date = document.getElementById('dateFilter').value;
+            const url = date ? `/api/attendance?date=${date}` : '/api/attendance';
+            const token = localStorage.getItem('token');
+            
+            fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(records => {
+                    currentAttendanceData = records;
+                    const div = document.getElementById('todayRecords');
+                    if (records.length === 0) {
+                        div.innerHTML = '<div class="empty">لا يوجد سجلات حضور</div>';
+                        return;
+                    }
+                   let html = `<table>
+    <thead><tr><th>الرقم</th><th>الاسم</th><th>الصف</th><th>التاريخ</th><th>الوقت</th></tr></thead>
+    <tbody>`;
+records.forEach(r => {
+    html += `<tr>
+        <td>${r.id}</td>
+        <td>${r.name}</td>
+        <td>${r.grade || '-'}</td>
+        <td>${r.date}</td>
+        <td>${r.time}</td>
+    </tr>`;
+});
+html += '</tbody></table>';
+div.innerHTML = html;
+                });
+        }
+
+        // ========== معلومات التاريخ ==========
+        function loadTodayInfo() {
+            const token = localStorage.getItem('token');
+            fetch('/api/today-info', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('todayDate').innerText = data.date;
+                document.getElementById('todayTime').innerText = data.time;
+            });
+        }
+
+        // تحديث الوقت كل ثانية
+        setInterval(() => {
+            const now = new Date();
+            const timeElement = document.getElementById('todayTime');
+            if (timeElement) {
+                timeElement.innerText = now.toLocaleTimeString('ar-EG');
+            }
+        }, 1000);
+
+        // ========== تصدير التقارير ==========
+        function exportToExcel() {
+            if (currentAttendanceData.length === 0) {
+                return alert('لا توجد بيانات للتصدير');
+            }
+
+            const data = currentAttendanceData.map(r => ({
+                'رقم الطالب': r.id,
+                'الاسم': r.name,
+                'الصف': r.grade || '-',
+                'التاريخ': r.date,
+                'الوقت': r.time
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'سجل الحضور');
+            
+            const date = document.getElementById('dateFilter').value || 'today';
+            XLSX.writeFile(wb, `attendance_${date}.xlsx`);
+        }
+
+        function exportToPDF() {
+            if (currentAttendanceData.length === 0) {
+                return alert('لا توجد بيانات للتصدير');
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const date = document.getElementById('dateFilter').value || new Date().toLocaleDateString('ar-EG');
+            doc.text(`سجل الحضور - ${date}`, 105, 15, { align: 'center' });
+
+            const tableData = currentAttendanceData.map(r => [r.id, r.name, r.grade || '-', r.time]);
+            
+            doc.autoTable({
+                head: [['الرقم', 'الاسم', 'الصف', 'الوقت']],
+                body: tableData,
+                startY: 25,
+                styles: { font: 'arial', fontSize: 10, halign: 'right' },
+                headStyles: { fillColor: [30, 60, 114] }
+            });
+
+            doc.save(`attendance_${date}.pdf`);
+        }
+
+        // ========== النسخ الاحتياطي ==========
+        function exportBackup() {
+            const token = localStorage.getItem('token');
+            window.location.href = `/api/backup/export?token=${token}`;
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!confirm('⚠️ تحذير: سيتم استبدال جميع البيانات الحالية. هل أنت متأكد؟')) {
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const token = localStorage.getItem('token');
+                    
+                    fetch('/api/backup/import', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (result.error) {
+                            alert('❌ ' + result.error);
+                        } else {
+                            alert(`✅ ${result.message}\nعدد الطلاب: ${result.studentsCount}\nعدد السجلات: ${result.attendanceCount}`);
+                            loadStats();
+                            loadSettings();
+                        }
+                    });
+                } catch (err) {
+                    alert('❌ ملف غير صالح');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ========== الإعدادات ==========
+        function loadSettings() {
+            fetch('/api/settings')
+                .then(r => r.json())
+                .then(settings => {
+                    if (settings.universityName) {
+                        document.getElementById('universityName').innerText = settings.universityName;
+                    }
+                    if (settings.collegeName) {
+                        document.getElementById('collegeName').innerText = settings.collegeName;
+                    }
+                    if (settings.universityLogo) {
+                        document.getElementById('universityLogo').src = settings.universityLogo;
+                        document.getElementById('universityLogo').style.display = 'block';
+                        document.getElementById('universityLogoPlaceholder').style.display = 'none';
+                    }
+                    if (settings.collegeLogo) {
+                        document.getElementById('collegeLogo').src = settings.collegeLogo;
+                        document.getElementById('collegeLogo').style.display = 'block';
+                        document.getElementById('collegeLogoPlaceholder').style.display = 'none';
+                    }
+                });
+        }
+
+        function loadSettingsForm() {
+            fetch('/api/settings')
+                .then(r => r.json())
+                .then(settings => {
+                    if (settings.universityName) {
+                        document.getElementById('settingsUniversityName').value = settings.universityName;
+                    }
+                    if (settings.collegeName) {
+                        document.getElementById('settingsCollegeName').value = settings.collegeName;
+                    }
+                    if (settings.universityLogo) {
+                        universityLogoData = settings.universityLogo;
+                        document.getElementById('previewUniversityLogo').src = settings.universityLogo;
+                        document.getElementById('previewUniversityLogo').style.display = 'block';
+                        document.getElementById('placeholderUniversityLogo').style.display = 'none';
+                    }
+                    if (settings.collegeLogo) {
+                        collegeLogoData = settings.collegeLogo;
+                        document.getElementById('previewCollegeLogo').src = settings.collegeLogo;
+                        document.getElementById('previewCollegeLogo').style.display = 'block';
+                        document.getElementById('placeholderCollegeLogo').style.display = 'none';
+                    }
+                });
+        }
+
+        function previewLogo(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = e.target.result;
+                
+                if (type === 'university') {
+                    universityLogoData = imageData;
+                    document.getElementById('previewUniversityLogo').src = imageData;
+                    document.getElementById('previewUniversityLogo').style.display = 'block';
+                    document.getElementById('placeholderUniversityLogo').style.display = 'none';
+                } else {
+                    collegeLogoData = imageData;
+                    document.getElementById('previewCollegeLogo').src = imageData;
+                    document.getElementById('previewCollegeLogo').style.display = 'block';
+                    document.getElementById('placeholderCollegeLogo').style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveSettings() {
+            const universityName = document.getElementById('settingsUniversityName').value.trim();
+            const collegeName = document.getElementById('settingsCollegeName').value.trim();
+            const token = localStorage.getItem('token');
+
+            const settings = {
+                universityName,
+                collegeName,
+                universityLogo: universityLogoData || '',
+                collegeLogo: collegeLogoData || ''
+            };
+
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    loadSettings();
+                }
+            });
+        }
+
+        // ========== إدارة المستخدمين ==========
+        function loadUsers() {
+            const token = localStorage.getItem('token');
+            fetch('/api/users', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(users => {
+                    const list = document.getElementById('usersList');
+                    if (users.length === 0) {
+                        list.innerHTML = '<div class="empty">لا يوجد مستخدمين</div>';
+                        return;
+                    }
+                    let html = `<table>
+                        <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>الحالة</th><th>حذف</th></tr></thead>
+                        <tbody>`;
+                    users.forEach(u => {
+                        const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">مدير</span>' : '<span class="badge badge-teacher">معلم</span>';
+                        const statusBadge = u.status === 'approved' ? '<span class="badge badge-approved">مفعل</span>' : 
+                                          u.status === 'pending' ? '<span class="badge badge-pending">معلق</span>' : 
+                                          '<span class="badge badge-rejected">مرفوض</span>';
+                        html += `<tr>
+                            <td>${u.name}</td>
+                            <td>${u.username}</td>
+                            <td>${roleBadge}</td>
+                            <td>${statusBadge}</td>
+                            <td><button onclick="deleteUser('${u.id}', '${u.name}')" class="btn-danger">حذف</button></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    list.innerHTML = html;
+                });
+        }
+
+        function addUser() {
+            const username = document.getElementById('newUserUsername').value.trim();
+            const password = document.getElementById('newUserPassword').value;
+            const name = document.getElementById('newUserName').value.trim();
+            const role = document.getElementById('newUserRole').value;
+
+            if (!username || !password || !name) {
+                return alert('جميع الحقول مطلوبة');
+            }
+
+            const token = localStorage.getItem('token');
+            fetch('/api/users', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ username, password, name, role })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    document.getElementById('newUserUsername').value = '';
+                    document.getElementById('newUserPassword').value = '';
+                    document.getElementById('newUserName').value = '';
+                    loadUsers();
+                }
+            });
+        }
+
+        function deleteUser(id, name) {
+            if (!confirm(`هل أنت متأكد من حذف المستخدم ${name}؟`)) return;
+            const token = localStorage.getItem('token');
+            fetch(`/api/users/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || data.error);
+                    loadUsers();
+                });
+        }
+
+        // ========== إدارة الطلبات المعلقة ==========
+        function loadPendingRequests() {
+            const token = localStorage.getItem('token');
+            fetch('/api/pending-requests', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(requests => {
+                    const list = document.getElementById('pendingRequestsList');
+                    if (requests.length === 0) {
+                        list.innerHTML = '<div class="empty">لا يوجد طلبات معلقة</div>';
+                        return;
+                    }
+                    let html = '';
+                    requests.forEach(r => {
+                        const date = new Date(r.created_at).toLocaleString('ar-EG');
+                        html += `
+                            <div class="request-card">
+                                <div class="request-info">
+                                    <h4>${r.name}</h4>
+                                    <p><strong>اسم المستخدم:</strong> ${r.username}</p>
+                                    ${r.email ? `<p><strong>البريد:</strong> ${r.email}</p>` : ''}
+                                    <p><strong>تاريخ الطلب:</strong> ${date}</p>
+                                </div>
+                                <div class="request-actions">
+                                    <button onclick="approveRequest('${r.id}')" class="btn-success">✅ موافقة</button>
+                                    <button onclick="rejectRequest('${r.id}')" class="btn-danger">❌ رفض</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    list.innerHTML = html;
+                });
+        }
+
+        function approveRequest(id) {
+            if (!confirm('هل أنت متأكد من الموافقة على هذا الطلب؟')) return;
+            const token = localStorage.getItem('token');
+            fetch(`/api/pending-requests/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('❌ ' + data.error);
+                    } else {
+                        alert('✅ ' + data.message);
+                        loadPendingRequests();
+                    }
+                });
+        }
+
+        function rejectRequest(id) {
+            if (!confirm('هل أنت متأكد من رفض هذا الطلب؟')) return;
+            const token = localStorage.getItem('token');
+            fetch(`/api/pending-requests/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('❌ ' + data.error);
+                    } else {
+                        alert('✅ ' + data.message);
+                        loadPendingRequests();
+                    }
+                });
+        }
+
+        // ========== تغيير كلمة المرور ==========
+
+        function openChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'block';
+            
+            // إذا كان أدمن، أظهر نموذج إعادة التعيين أيضاً
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminPasswordForm').style.display = 'block';
+                loadUsersForReset();
+            } else {
+                document.getElementById('adminPasswordForm').style.display = 'none';
+            }
+            
+            // تنظيف الحقول
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmNewPassword').value = '';
+            document.getElementById('adminNewPassword').value = '';
+            document.getElementById('adminConfirmPassword').value = '';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+        }
+
+        // تغيير كلمة المرور للمستخدم الحالي
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                return alert('الرجاء ملء جميع الحقول');
+            }
+
+            if (newPassword.length < 6) {
+                return alert('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                return alert('كلمتا المرور الجديدتان غير متطابقتين');
+            }
+
+            if (newPassword === currentPassword) {
+                return alert('كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية');
+            }
+
+            const token = localStorage.getItem('token');
+            fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    closeChangePasswordModal();
+                }
+            })
+            .catch(() => {
+                alert('❌ خطأ في الاتصال');
+            });
+        }
+
+        // تحميل المستخدمين لإعادة التعيين (للأدمن)
+        function loadUsersForReset() {
+            const token = localStorage.getItem('token');
+            fetch('/api/users', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(r => r.json())
+            .then(users => {
+                const select = document.getElementById('resetPasswordUser');
+                select.innerHTML = '<option value="">-- اختر مستخدم --</option>';
+                users.forEach(u => {
+                    if (u.id != currentUser.id) { // لا يظهر نفسه
+                        const option = document.createElement('option');
+                        option.value = u.id;
+                        option.textContent = `${u.name} (${u.username})`;
+                        select.appendChild(option);
+                    }
+                });
+            });
+        }
+
+        // إعادة تعيين كلمة المرور (للأدمن)
+        function adminResetPassword() {
+            const userId = document.getElementById('resetPasswordUser').value;
+            const newPassword = document.getElementById('adminNewPassword').value;
+            const confirmPassword = document.getElementById('adminConfirmPassword').value;
+
+            if (!userId) {
+                return alert('الرجاء اختيار المستخدم');
+            }
+
+            if (!newPassword || !confirmPassword) {
+                return alert('الرجاء ملء جميع الحقول');
+            }
+
+            if (newPassword.length < 6) {
+                return alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+            }
+
+            if (newPassword !== confirmPassword) {
+                return alert('كلمتا المرور غير متطابقتين');
+            }
+
+            if (!confirm('هل أنت متأكد من إعادة تعيين كلمة المرور لهذا المستخدم؟')) return;
+
+            const token = localStorage.getItem('token');
+            fetch('/api/reset-password', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ userId, newPassword })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('❌ ' + data.error);
+                } else {
+                    alert('✅ ' + data.message);
+                    closeChangePasswordModal();
+                }
+            })
+            .catch(() => {
+                alert('❌ خطأ في الاتصال');
+            });
+        }
+
+        // إغلاق Modal عند النقر خارجه
+        window.onclick = function(event) {
+            const editModal = document.getElementById('editModal');
+            const passwordModal = document.getElementById('changePasswordModal');
+            
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+            if (event.target === passwordModal) {
+                closeChangePasswordModal();
+            }
+        }
+    </script>
+</body>
+</html>
